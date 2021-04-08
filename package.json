@@ -1,0 +1,26 @@
+{
+  "name": "pwa-wrapper-desktop",
+  "version": "1.0.0",
+  "description": "⚠ In early development ⚠ ... further information will be available soon",
+  "main": "main.js",
+  "scripts": {
+    "start": "./node_modules/.bin/electron . --dev"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hampoelz/PWA-Wrapper-Desktop.git"
+  },
+  "author": {
+    "name": "Rene Hampölz",
+    "email": "service@hampoelz.net",
+    "url": "https://hampoelz.net/"
+  },
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/hampoelz/PWA-Wrapper-Desktop/issues"
+  },
+  "homepage": "https://github.com/hampoelz/PWA-Wrapper-Desktop#readme",
+  "devDependencies": {
+    "electron": "^12.0.0"
+  }
+}

@@ -1,0 +1,33 @@
+:is(.user-offline, .page-offline) #splash-screen {
+    display: none;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+#splash-screen span {
+    font-size: 150px;
+    text-align: center;
+    width: 100%;
+    animation: pulse 2.5s ease-in-out infinite alternate;
+    /* animation: loop 2.5s infinite linear */
+}
+
+#splash-screen h2 {
+    font-size: 40px;
+    text-align: center;
+}
+
+#splash-screen p {
+    font-size: 20px;
+    text-align: center;
+}

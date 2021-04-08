@@ -1,0 +1,53 @@
+#offline-screen {
+    display: none;
+}
+
+.user-offline #offline-screen, .user-offline #page-offline,
+.page-offline #offline-screen, .page-offline #user-offline {
+    display: none;
+}
+
+.user-offline #user-offline, .user-offline #offline-screen,
+.page-offline #offline-screen, .page-offline #page-offline {
+    display: block !important;
+}
+
+#offline-screen span {
+    font-size: 150px;
+    text-align: center;
+    width: 100%;
+}
+
+#offline-screen h1 {
+    font-size: 50px;
+    text-align: center;
+}
+
+#offline-screen p {
+    font-size: 20px;
+    text-align: center;
+}
+
+#offline-screen .controls {
+    display: flex;
+    justify-content: center;
+    align-content: center;
+    flex-wrap: wrap;
+    gap: 1em 2em;
+}
+
+#offline-screen .controls .button {
+    font-size: 20px;
+    border: 2px solid;
+    border-radius: 4px;
+    padding: 10px 20px;
+}
+
+#offline-screen .controls .button:hover {
+    background: #9e9e9e40;
+	color: var(--foreground-hover);
+}
+
+#offline-screen .controls .button:active {
+	background: #9e9e9e20;
+}

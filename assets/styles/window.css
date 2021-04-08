@@ -1,0 +1,30 @@
+*,
+*:before,
+*:after {
+  box-sizing: inherit;
+}
+
+html {
+	box-sizing: border-box;
+}
+
+body {
+	font-family: "Roboto";
+	border: 1px solid transparent;
+	color: var(--foreground);
+	overflow-y: hidden;
+	user-select: none;
+	height: 100%;
+	margin: 0;
+}
+.center {
+	left: 50%;
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+}
+
+:root {
+	--foreground: #E0E0E0;
+	--foreground-hover: #FFFFFF;
+}
