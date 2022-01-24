@@ -13,6 +13,8 @@ body {
 	border: 1px solid transparent;
 	color: var(--foreground);
 	overflow-y: hidden;
+	-ms-user-select: none;
+	-webkit-user-select: none;
 	user-select: none;
 	height: 100%;
 	margin: 0;
@@ -25,6 +27,6 @@ body {
 }
 
 :root {
-	--foreground: #E0E0E0;
-	--foreground-hover: #FFFFFF;
+	--foreground: '#E0E0E0';
+	--foreground-hover: '#FFFFFF';
 }

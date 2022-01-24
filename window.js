@@ -1,37 +1,62 @@
 const { ipcRenderer } = require('electron');
+const customTitlebar = require("custom-electron-titlebar");
 
-document.onreadystatechange = async () => {
-    if (document.readyState == "complete") {
-        await handleWindowControls();
-        await handleFailLoad();
+let titlebar;
 
-        let root = document.documentElement;
-        ipcRenderer.on('changeTitle', (_, title) => document.getElementById('window-title').querySelector('span').innerHTML = title);
-        ipcRenderer.on('changeBackground', (_, color) => document.body.style.backgroundColor = color);
-        ipcRenderer.on('changeForeground', (_, color) => root.style.setProperty('--foreground', color));
-        ipcRenderer.on('changeForegroundHover', (_, color) => root.style.setProperty('--foreground-hover', color));
-        ipcRenderer.on('disableContacting', () => document.getElementById('contact').style.display = 'none');
-    }
-};
+window.addEventListener('DOMContentLoaded', async () => {
+    titlebar = new customTitlebar.Titlebar({
+        backgroundColor: customTitlebar.Color.fromHex("#FFF"),
+        icon: 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==',
+        titleHorizontalAlignment: '',
+        onMinimize: () => ipcRenderer.send('window-minimize'),
+        onMaximize: () => ipcRenderer.send('window-maximize'),
+        onClose: () => ipcRenderer.send('window-close'),
+        isMaximized: () => ipcRenderer.sendSync('window-is-maximized'),
+        onMenuItemClick: commandId => ipcRenderer.send('menu-event', commandId)
+    });
+
+    const root = document.documentElement;
+
+    const updateTitleBarHight = () => ipcRenderer.send('titleBarHeight', parseInt(getComputedStyle(document.querySelector('.cet-titlebar')).height, 10));
+
+    ipcRenderer.on('disableContacting', () => document.getElementById('contact').style.display = 'none');
+    ipcRenderer.on('changeBackground', (_, color) => {
+        document.body.style.backgroundColor = color;
+        titlebar.updateBackground(customTitlebar.Color.fromHex(color));
+    });
+    ipcRenderer.on('changeForeground', (_, color) => root.style.setProperty('--foreground', color));
+    ipcRenderer.on('changeForegroundHover', (_, color) => root.style.setProperty('--foreground-hover', color));
+    ipcRenderer.on('changeTitleBarAlignment', (_, position) => titlebar.updateTitleAlignment(position));
+    ipcRenderer.on('changeMenuPosition', (_, position) => {
+        titlebar.updateMenuPosition(position);
+        updateTitleBarHight();
+    });
+    ipcRenderer.on('page-title-updated', (_, title) => titlebar.updateTitle(title))
+    ipcRenderer.on('page-favicon-updated', (_, data) => {
+        let icon;
+
+        console.log(data)
+        if (ArrayBuffer.isView(data)) {
+            let favicon = new Blob([data]);
+            icon = URL.createObjectURL(favicon)
+        } else if (Array.isArray(data)) {
+            icon = data[0]
+        } else {
+            icon = data;
+        }
+
+        titlebar.updateIcon(icon)
+    })
+
+    ipcRenderer.send('request-application-menu');
+
+    updateTitleBarHight();
+    await handleFailLoad();
+});
+
+ipcRenderer.on('titlebar-menu', (_, menu) => titlebar.updateMenu(menu))
 
 window.onbeforeunload = () => ipcRenderer.send('removeAllListeners');
-
-async function handleWindowControls() {
-    document.getElementById('min-button').addEventListener("click", () => ipcRenderer.send('minimize'));
-    document.getElementById('max-button').addEventListener("click", () => ipcRenderer.send('maximize'));
-    document.getElementById('restore-button').addEventListener("click", () => ipcRenderer.send('unmaximize'));
-    document.getElementById('close-button').addEventListener("click", () => ipcRenderer.send('close'));
-
-    await toggleMaxRestoreButtons();
-    ipcRenderer.on('maximize', toggleMaxRestoreButtons);
-    ipcRenderer.on('unmaximize', toggleMaxRestoreButtons);
-
-    async function toggleMaxRestoreButtons() {
-        var isMaximized = await ipcRenderer.invoke('isMaximized');
-        if (isMaximized) document.body.classList.add('maximized');
-        else document.body.classList.remove('maximized');
-    }
-}
 
 async function handleFailLoad() {
     document.getElementById('reload').addEventListener("click", () => reloadPage());
