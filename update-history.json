@@ -1,0 +1,61 @@
+{
+    "name": "test",
+    "description": "",
+    "repository": "https://github.com/hampoelz/PWA-Wrapper-Desktop.git",
+    "history": [
+        {
+            "version": "1.0.1",
+            "files": {
+                "win32": "https://github.com/hampoelz/Digi4School2Pdf/releases/download/v0.3.1-BETA/Digi4School2Pdf-v0.3.1-BETA-win32-setup.exe",
+                "darwin": "",
+                "linux": ""
+            },
+            "staggering": "100%",
+            "isPrerelease": false,
+            "isMandatory": false
+        },
+        {
+            "version": "1.0",
+            "files": {
+                "win32": "1",
+                "darwin": "2",
+                "linux": "3"
+            },
+            "staggering": "50%",
+            "isPrerelease": false,
+            "isMandatory": false
+        },
+        {
+            "version": "1.0.0",
+            "files": {
+                "win32": "https://github.com/hampoelz/Digi4School2Pdf/releases/download/v0.3.1-BETA/Digi4School2Pdf-v0.3.1-BETA-win32-portable.exe",
+                "darwin": "",
+                "linux": ""
+            },
+            "staggering": "50%",
+            "isPrerelease": false,
+            "isMandatory": true
+        },
+        {
+            "files": {
+                "win32": "",
+                "darwin": "",
+                "linux": ""
+            },
+            "staggering": "100%",
+            "isPrerelease": false,
+            "isMandatory": false
+        },
+        {
+            "version": "foo",
+            "files": {
+                "win32": "",
+                "darwin": "",
+                "linux": ""
+            },
+            "staggering": "100%",
+            "isPrerelease": false,
+            "isMandatory": false
+        }
+    ]
+}

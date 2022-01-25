@@ -2,15 +2,26 @@ const { app, shell, ipcMain, BrowserView, BrowserWindow, Menu } = require('elect
 const path = require('path');
 const fs = require('fs');
 const _ = require('lodash');
+const updater = require('./updater');
 
-const package = require(path.join(__dirname, 'package.json'));
 const __appDir = path.dirname(require.main.filename);
+
+const package = require('./package.json');
+const appPackage = require(path.join(__appDir, 'package.json'));
+
+const wrapperVersion = package.version;
+const appVersion = appPackage.version;
 
 let titleBarHeight = 22;
 
-console.log('Wrapper Version: ' + package?.version);
+console.log('Wrapper Version: ' + wrapperVersion);
 
-if (__appDir == __dirname) pwaWrapper();
+if (__appDir == __dirname) {
+    pwaWrapper({ window: { titleBarAlignment: 'left' }});
+
+    const menu = Menu.buildFromTemplate([])
+    Menu.setApplicationMenu(menu)
+}
 
 ipcMain.on('request-application-menu', event => {
     const menu = Menu.getApplicationMenu();
@@ -29,23 +40,23 @@ async function pwaWrapper(options) {
         window: {
             title: 'PWA Wrapper',
             useFavicon: true,
-            contactUrl: '',
             width: 1100,
             minWidth: 400,
             height: 800,
             minHeight: 600,
-            foregroundColor: '#E0E0E0',
-            foregroundHoverColor: '#FFFFFF',
-            backgroundColor: '#000000',
+            foregroundColor: '#FFFFFF',
+            foregroundHoverColor: '#E0E0E0',
+            backgroundColor: '#0D1117',
             titleBarAlignment: 'center',
             menuPosition: 'left'
         },
         browser: {
             url: 'https://github.com/hampoelz',
-            whiteList: '',
+            whitelist: '',
             webPreferences: {}
         },
         singleInstanceLock: false,
+        updateHistory: 'http://127.0.0.1:5500/update-history.jsons',
     });
 
     if (options.singleInstanceLock) {
@@ -58,6 +69,9 @@ async function pwaWrapper(options) {
 
     await app.whenReady();
     const { window, browser } = createWindow(options.window, options.browser);
+
+    if (options.updateHistory)
+        updater.runUpdater(window, appVersion, options.updateHistory);
 
     app.on('second-instance', () => {
         if (window.isMinimized()) window.restore();
@@ -91,14 +105,13 @@ function createWindow(windowOptions, browserOptions) {
         show: false,
         frame: false,
         webPreferences: {
-            devTools: true,
+            devTools: false,
             preload: path.join(__dirname, 'window.js')
         }
     });
 
     browserOptions = _.merge(browserOptions, {
         webPreferences: {
-            devTools: false,
             preload: path.join(__dirname, 'preload.js')
         }
     });
@@ -119,11 +132,16 @@ function createWindow(windowOptions, browserOptions) {
         browser.setBounds({ x: 0, y: titleBarHeight, width: newBounds.width, height: newBounds.height - titleBarHeight });
     }
 
-    const mainWindow = new BrowserWindow(windowOptions);
-    const browser = new BrowserView(browserOptions);
+    let mainWindow = new BrowserWindow(windowOptions);
+    let browser = new BrowserView(browserOptions);
 
     mainWindow.once('ready-to-show', () => mainWindow.show());
     mainWindow.on('resize', () => setBrowserBounds());
+
+    mainWindow.on('closed', () => {
+        mainWindow = null;
+        browser = null;
+    });
 
     mainWindow.webContents.on('dom-ready', sendConfig);
     browser.webContents.on('dom-ready', sendConfig);
@@ -144,18 +162,18 @@ function createWindow(windowOptions, browserOptions) {
         browser.webContents.loadURL(currentUrl || browserOptions.url);
         browser.webContents.openDevTools({ mode: 'undocked' });
 
-        if (!windowOptions.contactUrl) mainWindow.webContents.send('disableContacting');
+        if (!appPackage?.bugs?.url && !appPackage?.bugs?.email) mainWindow.webContents.send('disableContacting');
 
         ipcMain.on('reload', () => {
             browser.webContents.loadURL(browserOptions.url);
-            browserFailed = false;
+            isLoaded = true;
         });
     });
 
 
-    let browserFailed = false;
+    var isLoaded = true;
     browser.webContents.on('did-finish-load', async () => {
-        if (browserFailed) return;
+        if (!isLoaded) return;
         if (customRenderer) {
             const appRenderer = path.join(__appDir, customRenderer);
             const appRendererData = fs.readFileSync(appRenderer);
@@ -175,7 +193,7 @@ function createWindow(windowOptions, browserOptions) {
     browser.webContents.on('did-fail-load', () => {
         mainWindow.webContents.send('did-fail-load');
         mainWindow.removeBrowserView(browser);
-        browserFailed = true;
+        isLoaded = false;
     });
     
     browser.webContents.on('will-navigate', (event, url) => {
@@ -207,7 +225,7 @@ function createWindow(windowOptions, browserOptions) {
     if (customPreload) browser.webContents.send('preload', path.join(__appDir, customPreload));
 
     function isUrlWhitelisted(url) {
-        const regex = new RegExp(browserOptions.whiteList || browserOptions.url);
+        const regex = new RegExp(browserOptions.whitelist || browserOptions.url);
         return Boolean(url.match(regex));
     }
 
@@ -215,7 +233,11 @@ function createWindow(windowOptions, browserOptions) {
     ipcMain.on('changeBackground', (_, color) => mainWindow.webContents.send('changeBackground', color));
     ipcMain.on('changeForeground', (_, color) => mainWindow.webContents.send('changeForeground', color));
     ipcMain.on('changeForegroundHover', (_, color) => mainWindow.webContents.send('changeForegroundHover', color));
-    ipcMain.on('contact', () => shell.openExternal(windowOptions.contactUrl));
+    ipcMain.on('contact', () => {
+        let mail = appPackage?.bugs?.email;
+        if (mail) mail = 'mailto:' + mail;
+        shell.openExternal(appPackage?.bugs?.url ?? mail)
+    });
 
     return {
         window: mainWindow,

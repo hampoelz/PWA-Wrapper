@@ -1,30 +1,32 @@
 {
-  "name": "pwa-wrapper-desktop",
-  "version": "1.0.0",
+  "name": "pwa-wrapper",
+  "version": "1.0.0-beta",
   "description": "⚠ In early development ⚠ ... further information will be available soon",
   "main": "main.js",
   "scripts": {
-    "start": "./node_modules/.bin/electron . --dev"
+    "start": "electron . --dev"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/hampoelz/PWA-Wrapper-Desktop.git"
+    "url": "https://github.com/hampoelz/PWA-Wrapper.git"
   },
   "author": {
     "name": "Rene Hampölz",
-    "email": "service@hampoelz.net",
+    "email": "rene@hampoelz.net",
     "url": "https://hampoelz.net/"
   },
-  "license": "MIT",
+  "homepage": "https://github.com/hampoelz/PWA-Wrapper#readme",
   "bugs": {
-    "url": "https://github.com/hampoelz/PWA-Wrapper-Desktop/issues"
+    "url": "https://github.com/hampoelz/PWA-Wrapper/issues"
   },
-  "homepage": "https://github.com/hampoelz/PWA-Wrapper-Desktop#readme",
-  "devDependencies": {
-    "electron": "^16.0.7"
-  },
+  "license": "MIT",
   "dependencies": {
     "custom-electron-titlebar": "^4.0.0",
-    "loadash": "^1.0.0"
+    "compare-versions": "^4.1.3",
+    "node-fetch": "^2.6.7",
+    "lodash": "^4.17.21"
+  },
+  "peerDependencies": {
+    "electron": "^16.0.7"
   }
 }

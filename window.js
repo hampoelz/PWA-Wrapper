@@ -34,8 +34,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     ipcRenderer.on('page-title-updated', (_, title) => titlebar.updateTitle(title))
     ipcRenderer.on('page-favicon-updated', (_, data) => {
         let icon;
-
-        console.log(data)
+        
         if (ArrayBuffer.isView(data)) {
             let favicon = new Blob([data]);
             icon = URL.createObjectURL(favicon)
