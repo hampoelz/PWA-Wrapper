@@ -33,21 +33,21 @@ async function runUpdater(window, currentVersion, historyUrl) {
     const isStoreTarget = checkIfStoreTarget();;
 
     window.on('close', () => {
-        let message = 'A new version has been downloaded. Would you like to install the update now?';
+        let message = `A new version has been downloaded. The update to v${update.version} will be installed automatically in the background. You don't have to do anything.`;
 
         if (isStoreTarget)
-            message = 'It seems there are problems updating this program from the store. Would you like to install the update in the background now? You may want to uninstall the old version manually. '
+            message = `It seems there are problems updating this program from the store. The update to v${update.version} will be installed automatically in the background. You may want to uninstall the old version manually.`
 
         const choice = dialog.showMessageBoxSync(window, {
             type: 'info',
             message: 'v' + update.version,
             detail: message,
-            buttons: ['Yes', 'No']
+            buttons: ['Ok', 'Cancel']
         });
-
+        
         if (choice != 0) return;
 
-        const setup = spawn(update.path, {
+        const setup = spawn(update.path, ["/S"], {
             detached: true,
             stdio: ['ignore']
         });
