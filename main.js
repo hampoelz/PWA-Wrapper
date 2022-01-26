@@ -165,7 +165,7 @@ function createWindow(windowOptions, browserOptions) {
 
         ipcMain.on('reload', () => {
             isLoaded = true;
-            browser.webContents.loadURL(browserOptions.url);
+            browser.webContents.loadURL(browser.webContents.getURL() ?? browserOptions.url);
         });
     });
 
