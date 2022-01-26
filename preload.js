@@ -3,7 +3,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 ipcRenderer.on('preload', (_, preload) => require(preload));
 ipcRenderer.send('preload-loaded');
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('loaded', () => {
     const html = document.querySelector('html');
     if (getComputedStyle(html).backgroundColor == 'rgba(0, 0, 0, 0)')
         html.style.backgroundColor = 'white';
