@@ -31,7 +31,10 @@ window.addEventListener('DOMContentLoaded', async () => {
         titlebar.updateMenuPosition(position);
         updateTitleBarHight();
     });
-    ipcRenderer.on('page-title-updated', (_, title) => titlebar.updateTitle(title))
+    ipcRenderer.on('page-title-updated', (_, title) => {
+        let trimmedTitle = title.substring(0, 70);
+        titlebar.updateTitle(trimmedTitle + (title.length > 70 ? '...' : ''));
+    })
     ipcRenderer.on('page-favicon-updated', (_, data) => {
         let icon;
         
