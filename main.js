@@ -146,6 +146,11 @@ function createWindow(windowOptions, browserOptions) {
     mainWindow.loadFile(path.join(__dirname, 'window.html'));
     mainWindow.openDevTools({ mode: 'undocked' });
 
+    ipcMain.handle('preload', () => {
+        if (customPreload) return path.join(__appDir, customPreload);
+        return;
+    })
+
     let isLoaded = true;
 
     mainWindow.webContents.on('did-finish-load', () => {
@@ -168,7 +173,6 @@ function createWindow(windowOptions, browserOptions) {
             browser.webContents.loadURL(browser.webContents.getURL() ?? browserOptions.url);
         });
     });
-
     
     browser.webContents.on('did-finish-load', async () => {
         if (!isLoaded) return;
@@ -210,10 +214,6 @@ function createWindow(windowOptions, browserOptions) {
         isLoaded = false;
     });
 
-    ipcMain.on('preload-loaded', () => {
-        if (customPreload) browser.webContents.send('preload', path.join(__appDir, customPreload));
-    })
-
     browser.webContents.on('will-navigate', (event, url) => {
         if (isUrlWhitelisted(url)) return;
 
@@ -222,6 +222,7 @@ function createWindow(windowOptions, browserOptions) {
     });
 
     browser.webContents.on('new-window', (event, url) => {
+        console.log("new window")
         if (isUrlWhitelisted(url)) browser.webContents.loadURL(url);
         else shell.openExternal(url);
 
