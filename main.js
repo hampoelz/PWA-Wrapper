@@ -17,7 +17,7 @@ let titleBarHeight = 22;
 console.log('Wrapper Version: ' + wrapperVersion);
 
 if (__appDir == __dirname) {
-    pwaWrapper({ window: { titleBarAlignment: 'left' }});
+    pwaWrapper({ window: { titleBarAlignment: 'left' } });
 
     const menu = Menu.buildFromTemplate([])
     Menu.setApplicationMenu(menu)
@@ -59,9 +59,11 @@ async function pwaWrapper(options) {
         updateHistory: 'http://127.0.0.1:5500/update-history.jsons',
     });
 
-    if (options.singleInstanceLock) {
-        const gotTheLock = app.requestSingleInstanceLock();
-        if (!gotTheLock) {
+    let isSecondInstance = false;
+    const gotTheLock = app.requestSingleInstanceLock({ pid: process.pid });
+    if (!gotTheLock) {
+        isSecondInstance = true;
+        if (options.singleInstanceLock) {
             app.quit();
             return;
         }
@@ -70,12 +72,14 @@ async function pwaWrapper(options) {
     await app.whenReady();
     const { window, browser } = createWindow(options.window, options.browser);
 
-    if (options.updateHistory)
+    if (!isSecondInstance && options.updateHistory)
         updater.runUpdater(window, appVersion, options.updateHistory);
 
     app.on('second-instance', () => {
-        if (window.isMinimized()) window.restore();
-        window.focus();
+        if (options.singleInstanceLock) {
+            if (window.isMinimized()) window.restore();
+            window.focus();
+        }
     });
 
     ipcMain.on('menu-event', (event, commandId) => {
@@ -151,12 +155,12 @@ function createWindow(windowOptions, browserOptions) {
 
     mainWindow.webContents.on('did-finish-load', () => {
         mainWindow.webContents.send('page-title-updated', windowOptions.title);
-        
+
         if (windowOptions.icon)
             fs.readFile(path.join(__appDir, windowOptions.icon), (_, buffer) => {
                 mainWindow.webContents.send('page-favicon-updated', new Uint8Array(buffer))
             });
-        
+
 
         let currentUrl = browser.webContents.getURL();
         browser.webContents.loadURL(currentUrl || browserOptions.url);
@@ -195,7 +199,7 @@ function createWindow(windowOptions, browserOptions) {
         mainWindow.removeBrowserView(browser);
         isLoaded = false;
     });
-    
+
     browser.webContents.on('will-navigate', (event, url) => {
         if (isUrlWhitelisted(url)) return;
 

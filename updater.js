@@ -1,11 +1,12 @@
 const compareVersions = require('compare-versions');
 const { spawn } = require('child_process');
-const { dialog } = require('electron');
+const { dialog, app } = require('electron');
 const fetch = require('node-fetch');
 const path = require('path');
 const os = require('os');
 const fs = require('fs');
 const _ = require('lodash');
+const find = require('find-process');
 
 /* {
     "name": "",
@@ -28,11 +29,12 @@ const _ = require('lodash');
 
 async function runUpdater(window, currentVersion, historyUrl) {
     const update = await downloadUpdate(currentVersion, historyUrl);
+    //const update = { path: 'explorer.exe', version: '1.0' }
     if (!update || !update.path) return;
 
     const isStoreTarget = checkIfStoreTarget();;
 
-    window.on('close', () => {
+    window.on('close', async event => {
         let message = `A new version has been downloaded. The update to v${update.version} will be installed automatically in the background. You don't have to do anything.`;
 
         if (isStoreTarget)
@@ -46,12 +48,27 @@ async function runUpdater(window, currentVersion, historyUrl) {
         });
         
         if (choice != 0) return;
+        event.preventDefault();
+        window.hide();
 
-        const setup = spawn(update.path, ["/S"], {
-            detached: true,
-            stdio: ['ignore']
-        });
-        setup.unref();
+        try {
+            const executable = path.basename(process.execPath);
+            const processList = await find('name', executable);
+            processList.forEach(({ pid }) => {
+                if (pid == process.pid) return;
+                process.kill(pid);
+            });
+
+            const setup = spawn(update.path, ["/S"], {
+                detached: true,
+                stdio: ['ignore']
+            });
+            setup.unref();
+        } catch (ex) {
+            console.error(ex);
+        }
+
+        window.destroy();
     });
 }
 
