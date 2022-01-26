@@ -206,7 +206,7 @@ function createWindow(windowOptions, browserOptions) {
         isLoaded = false;
     });
 
-    browser.webContents.on('did-navigate', () => {
+    ipcMain.on('preload-loaded', () => {
         if (customPreload) browser.webContents.send('preload', path.join(__appDir, customPreload));
     })
 

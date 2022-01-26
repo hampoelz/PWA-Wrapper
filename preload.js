@@ -1,6 +1,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 ipcRenderer.on('preload', (_, preload) => require(preload));
+ipcRenderer.send('preload-loaded');
 
 document.addEventListener('DOMContentLoaded', () => {
     const html = document.querySelector('html');
