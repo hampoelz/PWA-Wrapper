@@ -85,11 +85,7 @@ async function pwaWrapper(options) {
     ipcMain.on('menu-event', (event, commandId) => {
         const menu = Menu.getApplicationMenu();
         const item = getMenuItemByCommandId(commandId, menu);
-        try {
-            item?.click(undefined, browser, event.sender);
-        } catch {
-            item?.click(undefined, window, event.sender);
-        }
+        item?.click(undefined, browser, event.sender);
     });
 
     ipcMain.on('window-minimize', () => window.minimize());
@@ -122,14 +118,6 @@ function createWindow(windowOptions, browserOptions) {
 
     if (process.argv[2] != '--dev') browserOptions.webPreferences.devTools = false
 
-    function sendConfig() {
-        this.send('changeBackground', windowOptions.backgroundColor)
-        this.send('changeForeground', windowOptions.foregroundColor)
-        this.send('changeForegroundHover', windowOptions.foregroundHoverColor)
-        this.send('changeTitleBarAlignment', windowOptions.titleBarAlignment)
-        this.send('changeMenuPosition', windowOptions.menuPosition)
-    }
-
     // setAutoResize doesn't work properly
     function setBrowserBounds() {
         let newBounds = mainWindow.getContentBounds();
@@ -147,8 +135,13 @@ function createWindow(windowOptions, browserOptions) {
         browser = null;
     });
 
-    mainWindow.webContents.on('dom-ready', sendConfig);
-    browser.webContents.on('dom-ready', sendConfig);
+    mainWindow.webContents.on('dom-ready', function() {
+        this.send('changeBackground', windowOptions.backgroundColor)
+        this.send('changeForeground', windowOptions.foregroundColor)
+        this.send('changeForegroundHover', windowOptions.foregroundHoverColor)
+        this.send('changeTitleBarAlignment', windowOptions.titleBarAlignment)
+        this.send('changeMenuPosition', windowOptions.menuPosition)
+    });
 
     mainWindow.loadFile(path.join(__dirname, 'window.html'));
     mainWindow.openDevTools({ mode: 'undocked' });
