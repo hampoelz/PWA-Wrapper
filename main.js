@@ -153,6 +153,8 @@ function createWindow(windowOptions, browserOptions) {
     mainWindow.loadFile(path.join(__dirname, 'window.html'));
     mainWindow.openDevTools({ mode: 'undocked' });
 
+    let isLoaded = true;
+
     mainWindow.webContents.on('did-finish-load', () => {
         mainWindow.webContents.send('page-title-updated', windowOptions.title);
 
@@ -174,9 +176,9 @@ function createWindow(windowOptions, browserOptions) {
         });
     });
 
-
-    var isLoaded = true;
+    
     browser.webContents.on('did-finish-load', async () => {
+        isLoading = false;
         if (!isLoaded) return;
         if (customRenderer) {
             const appRenderer = path.join(__appDir, customRenderer);
@@ -194,11 +196,26 @@ function createWindow(windowOptions, browserOptions) {
         setBrowserBounds();
     });
 
-    browser.webContents.on('did-fail-load', () => {
+    const allowedErrorRange = [
+        -1,     // IO_PENDING
+        -3,     // ABORTED
+        -11,    // NOT_IMPLEMENTED
+        -14,    // UPLOAD_FILE_CHANGED
+        -16,    // FILE_EXISTS
+        -23,    // SOCKET_IS_CONNECTED
+        -25     // UPLOAD_STREAM_REWIND_NOT_SUPPORTED
+    ]
+
+    browser.webContents.on('did-fail-load', (_, error) => {
+        if (allowedErrorRange.includes(error)) return;
         mainWindow.webContents.send('did-fail-load');
         mainWindow.removeBrowserView(browser);
         isLoaded = false;
     });
+
+    browser.webContents.on('did-navigate', () => {
+        if (customPreload) browser.webContents.send('preload', path.join(__appDir, customPreload));
+    })
 
     browser.webContents.on('will-navigate', (event, url) => {
         if (isUrlWhitelisted(url)) return;
@@ -224,13 +241,11 @@ function createWindow(windowOptions, browserOptions) {
             mainWindow.webContents.send('page-favicon-updated', icons)
         });
 
-    browser.webContents.setUserAgent(browser.webContents.session.getUserAgent().replace('Electron', 'WebAppWrapper'));
-
-    if (customPreload) browser.webContents.send('preload', path.join(__appDir, customPreload));
+    browser.webContents.setUserAgent(browserOptions.userAgent || browser.webContents.session.getUserAgent().replace('Electron', 'WebAppWrapper'));
 
     function isUrlWhitelisted(url) {
         const regex = new RegExp(browserOptions.whitelist || browserOptions.url);
-        return Boolean(url.match(regex));
+        return regex.test(url);
     }
 
     ipcMain.on('removeAllListeners', () => mainWindow.removeAllListeners());
