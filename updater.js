@@ -1,6 +1,6 @@
 const compareVersions = require('compare-versions');
 const { spawn } = require('child_process');
-const { dialog, app } = require('electron');
+const { dialog } = require('electron');
 const fetch = require('node-fetch');
 const path = require('path');
 const os = require('os');
@@ -76,7 +76,7 @@ async function downloadUpdate(currentVersion, url) {
     const package = await getUpdatePacket(currentVersion, url);
     if (!package) return;
 
-    console.log("update Found, downloading file " + package.targetFile)
+    console.log(`Updater: Update file found - start downloading file '${package.targetFile}'`)
 
     let downloadPath;
 
@@ -88,7 +88,7 @@ async function downloadUpdate(currentVersion, url) {
         const appTempDir = fs.mkdtempSync(path.join(os.tmpdir(), package.appName + '-'));
         downloadPath = path.join(appTempDir, setupFileName);
 
-        console.log("write file to filesystem: " + downloadPath)
+        console.log("Updater: Save file to filesystem: " + downloadPath)
 
         const fileStream = fs.createWriteStream(downloadPath);
 
@@ -98,8 +98,7 @@ async function downloadUpdate(currentVersion, url) {
             fileStream.on("finish", resolve);
         });
 
-        console.log("Write successfully, idling")
-
+        console.log("Updater: File saved successfully - waiting for the window to close.")
     } catch (ex) {
         console.error(ex);
     }
