@@ -164,14 +164,13 @@ function createWindow(windowOptions, browserOptions) {
         if (!appPackage?.bugs?.url && !appPackage?.bugs?.email) mainWindow.webContents.send('disableContacting');
 
         ipcMain.on('reload', () => {
-            browser.webContents.loadURL(browserOptions.url);
             isLoaded = true;
+            browser.webContents.loadURL(browserOptions.url);
         });
     });
 
     
     browser.webContents.on('did-finish-load', async () => {
-        isLoading = false;
         if (!isLoaded) return;
         if (customRenderer) {
             const appRenderer = path.join(__appDir, customRenderer);
@@ -202,7 +201,12 @@ function createWindow(windowOptions, browserOptions) {
     browser.webContents.on('did-fail-load', (_, error) => {
         if (allowedErrorRange.includes(error)) return;
         mainWindow.webContents.send('did-fail-load');
-        mainWindow.removeBrowserView(browser);
+
+        if (mainWindow.getBrowserView(browser)) {
+            mainWindow.removeBrowserView(browser);
+            ipcMain.emit('reload'); // Reload once to reset DOM
+        }
+        
         isLoaded = false;
     });
 
