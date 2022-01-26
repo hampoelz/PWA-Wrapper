@@ -2,6 +2,12 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 ipcRenderer.on('preload', (_, preload) => require(preload));
 
+document.addEventListener('DOMContentLoaded', () => {
+    const html = document.querySelector('html');
+    if (getComputedStyle(html).backgroundColor == 'rgba(0, 0, 0, 0)')
+        html.style.backgroundColor = 'white';
+});
+
 contextBridge.exposeInMainWorld('nodejs', {
     channel: {
         on: (channel, callback) => ipcRenderer.on(channel, callback),
