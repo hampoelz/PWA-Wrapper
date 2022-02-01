@@ -27,7 +27,7 @@ const find = require('find-process');
     ]
 } */
 
-async function runUpdater(window, currentVersion, historyUrl) {
+async function runUpdater(window, currentVersion, historyUrl, packageName = null) {
     const update = await downloadUpdate(currentVersion, historyUrl);
     //const update = { path: 'explorer.exe', version: '1.0' }
     if (!update || !update.path) return;
@@ -38,8 +38,13 @@ async function runUpdater(window, currentVersion, historyUrl) {
         let message = `A new version has been downloaded. The update to v${update.version} will be installed automatically in the background. You don't have to do anything.`;
 
         if (isStoreTarget)
-            message = `It seems there are problems updating this program from the store. The update to v${update.version} will be installed automatically in the background. You may want to uninstall the old version manually.`
+            message = `It seems there are problems updating this program from the store. The update to v${update.version} will be installed automatically in the background.`
 
+        const canFindPackage = isStoreTarget && process.windowsStore && packageName;
+        
+        if (!canFindPackage)
+            message += ' You may want to uninstall the old version manually.';
+            
         const choice = dialog.showMessageBoxSync(window, {
             type: 'info',
             message: 'v' + update.version,
@@ -59,11 +64,17 @@ async function runUpdater(window, currentVersion, historyUrl) {
                 process.kill(pid);
             });
 
-            const setup = spawn(update.path, ["/S"], {
+            spawn(update.path, ["/S"], {
                 detached: true,
                 stdio: ['ignore']
-            });
-            setup.unref();
+            }).unref();
+
+            if (canFindPackage) {
+                spawn('powershell.exe', ["-Command", `"& {Get-AppxPackage *${packageName}* | Remove-AppxPackage}"`], {
+                    detached: true,
+                    stdio: ['ignore']
+                }).unref();
+            }
         } catch (ex) {
             console.error(ex);
         }

@@ -73,7 +73,7 @@ async function pwaWrapper(options) {
     const { window, browser } = createWindow(options.window, options.browser);
 
     if (!isSecondInstance && options.updateHistory)
-        updater.runUpdater(window, appVersion, options.updateHistory);
+        updater.runUpdater(window, appVersion, options.updateHistory, appPackage?.build?.appx?.identityName);
 
     app.on('second-instance', () => {
         if (options.singleInstanceLock) {
