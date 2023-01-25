@@ -1,20 +1,24 @@
-const { app, shell, ipcMain, BrowserView, BrowserWindow, Menu } = require('electron');
-const path = require('path');
-const fs = require('fs');
-const _ = require('lodash');
+const { app, shell, ipcMain, BrowserView, BrowserWindow, Menu } = require("electron");
+const { setupTitlebar, attachTitlebarToWindow } = require("custom-electron-titlebar/main");
+const { readFileSync } = require("fs");
+const { join, dirname, resolve } = require("path");
+const { defaultsDeep, merge } = require("lodash");
+
 const updater = require('./updater');
 
-const __appDir = path.dirname(require.main.filename);
+const __appDir = dirname(require.main.filename);
 
-const package = require('./package.json');
-const appPackage = require(path.join(__appDir, 'package.json'));
+const wrapperPackage = require('./package.json');
+const appPackage = require(join(__appDir, 'package.json'));
 
-const wrapperVersion = package.version;
+const wrapperVersion = wrapperPackage.version;
 const appVersion = appPackage.version;
 
 let titleBarHeight = 22;
 
 console.log('Wrapper Version: ' + wrapperVersion);
+
+setupTitlebar();
 
 if (__appDir == __dirname) {
     pwaWrapper({ window: { titleBarAlignment: 'left' } });
@@ -23,20 +27,14 @@ if (__appDir == __dirname) {
     Menu.setApplicationMenu(menu)
 }
 
-ipcMain.on('request-application-menu', event => {
-    const menu = Menu.getApplicationMenu();
-    const jsonMenu = JSON.parse(JSON.stringify(menu, parseMenu()));
-    event.sender.send('titlebar-menu', jsonMenu);
-});
-
-ipcMain.on('titleBarHeight', (_, height) => titleBarHeight = height);
+ipcMain.on('wrapper_main:updateTitleBarHeight', (_, height) => titleBarHeight = height);
 
 app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') app.quit();
 });
 
 async function pwaWrapper(options) {
-    options = _.defaultsDeep(options || {}, {
+    options = defaultsDeep(options || {}, {
         window: {
             title: 'PWA Wrapper',
             useFavicon: true,
@@ -44,9 +42,9 @@ async function pwaWrapper(options) {
             minWidth: 400,
             height: 800,
             minHeight: 600,
-            foregroundColor: '#FFFFFF',
-            foregroundHoverColor: '#E0E0E0',
-            backgroundColor: '#0D1117',
+            primaryColor: '#1095c1',
+            primaryColorHover: '#08769b',
+            titleBarColor: '#0D1117',
             titleBarAlignment: 'center',
             menuPosition: 'left'
         },
@@ -82,17 +80,6 @@ async function pwaWrapper(options) {
         }
     });
 
-    ipcMain.on('menu-event', (event, commandId) => {
-        const menu = Menu.getApplicationMenu();
-        const item = getMenuItemByCommandId(commandId, menu);
-        item?.click(undefined, browser, event.sender);
-    });
-
-    ipcMain.on('window-minimize', () => window.minimize());
-    ipcMain.on('window-maximize', () => window.isMaximized() ? window.unmaximize() : window.maximize());
-    ipcMain.on('window-close', () => window.close());
-    ipcMain.on('window-is-maximized', event => event.returnValue = window.isMaximized());
-
     return { window, browser };
 }
 
@@ -101,31 +88,46 @@ function createWindow(windowOptions, browserOptions) {
     const customRenderer = browserOptions.webPreferences?.renderer;
     const customStyle = browserOptions.webPreferences?.stylesheet;
 
-    windowOptions = _.merge(windowOptions, {
+    windowOptions = merge(windowOptions, {
         show: false,
-        frame: false,
+        titleBarStyle: 'hidden',
         webPreferences: {
             devTools: false,
-            preload: path.join(__dirname, 'window.js')
+            sandbox: false,
+            preload: join(__dirname, 'window.js')
         }
     });
 
-    browserOptions = _.merge(browserOptions, {
+    browserOptions = merge(browserOptions, {
         webPreferences: {
-            preload: path.join(__dirname, 'preload.js')
+            sandbox: false,
+            preload: join(__dirname, 'preload.js')
         }
     });
+
+    // TODO
+    ipcMain.handle('preload', () => {
+        if (customPreload) return customPreload;
+        return;
+    })
 
     if (process.argv[2] != '--dev') browserOptions.webPreferences.devTools = false
+
+    let mainWindow = new BrowserWindow(windowOptions);
+    let browser = new BrowserView(browserOptions);
+
+    attachTitlebarToWindow(mainWindow);
+
+    let isLoaded = true;
+    let isPageLoading = false;
+    let isMessageShown = false;
 
     // setAutoResize doesn't work properly
     function setBrowserBounds() {
         let newBounds = mainWindow.getContentBounds();
-        browser.setBounds({ x: 0, y: titleBarHeight, width: newBounds.width, height: newBounds.height - titleBarHeight });
+        let _titleBarHeight = titleBarHeight + (isPageLoading ? 3 : 0); // add the height of the loading bar (3px) when a page loads
+        browser.setBounds({ x: 0, y: _titleBarHeight, width: newBounds.width, height: newBounds.height - _titleBarHeight });
     }
-
-    let mainWindow = new BrowserWindow(windowOptions);
-    let browser = new BrowserView(browserOptions);
 
     mainWindow.once('ready-to-show', () => mainWindow.show());
     mainWindow.on('resize', () => setBrowserBounds());
@@ -136,58 +138,84 @@ function createWindow(windowOptions, browserOptions) {
     });
 
     mainWindow.webContents.on('dom-ready', function() {
-        this.send('changeBackground', windowOptions.backgroundColor)
-        this.send('changeForeground', windowOptions.foregroundColor)
-        this.send('changeForegroundHover', windowOptions.foregroundHoverColor)
-        this.send('changeTitleBarAlignment', windowOptions.titleBarAlignment)
-        this.send('changeMenuPosition', windowOptions.menuPosition)
+        this.send('wrapper_window:changePrimaryColor', windowOptions.primaryColor);
+        this.send('wrapper_window:changePrimaryHoverColor', windowOptions.primaryColorHover);
+        this.send('wrapper_window:changeTitleBarColor', windowOptions.titleBarColor);
+        this.send('wrapper_window:changeTitleBarAlignment', windowOptions.titleBarAlignment);
+        this.send('wrapper_window:changeMenuPosition', windowOptions.menuPosition);
     });
 
-    mainWindow.loadFile(path.join(__dirname, 'window.html'));
-    mainWindow.openDevTools({ mode: 'undocked' });
-
-    ipcMain.handle('preload', () => {
-        if (customPreload) return path.join(__appDir, customPreload);
-        return;
-    })
-
-    let isLoaded = true;
-
     mainWindow.webContents.on('did-finish-load', () => {
-        mainWindow.webContents.send('page-title-updated', windowOptions.title);
+        mainWindow.webContents.send('wrapper_window:updatePageTitle', windowOptions.title);
 
         if (windowOptions.icon)
-            fs.readFile(path.join(__appDir, windowOptions.icon), (_, buffer) => {
-                mainWindow.webContents.send('page-favicon-updated', new Uint8Array(buffer))
-            });
+            mainWindow.webContents.send('wrapper_window:updatePageFavicon', resolve(windowOptions.icon))
+        
+        const getCurrentUrl = () => browser.webContents.getURL() || browserOptions.url;
 
-
-        let currentUrl = browser.webContents.getURL();
-        browser.webContents.loadURL(currentUrl || browserOptions.url);
+        browser.webContents.loadURL(getCurrentUrl());
         browser.webContents.openDevTools({ mode: 'undocked' });
 
-        if (!appPackage?.bugs?.url && !appPackage?.bugs?.email) mainWindow.webContents.send('disableContacting');
+        if (!appPackage?.bugs?.url && !appPackage?.bugs?.email) mainWindow.webContents.send('wrapper_window:disableContacting');
 
-        ipcMain.on('reload', () => {
+        ipcMain.on('wrapper_main:browser-reload', () => {
+            browser.webContents.loadURL(getCurrentUrl());
             isLoaded = true;
-            browser.webContents.loadURL(browser.webContents.getURL() ?? browserOptions.url);
         });
     });
     
+    mainWindow.loadFile(join(__dirname, 'window.html'));
+    mainWindow.openDevTools({ mode: 'undocked' });
+
+    mainWindow.webContents.on('will-navigate', (event) => {
+        event.preventDefault();
+    });
+
+    mainWindow.openMessageScreen = html => {
+        isMessageShown = true;
+
+        if (mainWindow.getBrowserView(browser))
+            mainWindow.removeBrowserView(browser);
+
+        mainWindow.webContents.send('wrapper_window:openMessageScreen', html);
+    }
+
+    mainWindow.closeMessageScreen = () => {
+        if (mainWindow.getBrowserView(browser)) return;
+
+        mainWindow.addBrowserView(browser);
+        setBrowserBounds();
+
+        mainWindow.webContents.send('wrapper_window:closeMessageScreen');
+
+        isMessageShown = false;
+    }
+
+    browser.webContents.on("did-start-loading", () => {
+        isPageLoading = true;
+        setBrowserBounds();
+    });
+
+    browser.webContents.on("did-stop-loading", () => {
+        isPageLoading = false;
+        setBrowserBounds();
+    });
+
     browser.webContents.on('did-finish-load', async () => {
         if (!isLoaded) return;
         if (customRenderer) {
-            const appRenderer = path.join(__appDir, customRenderer);
-            const appRendererData = fs.readFileSync(appRenderer);
+            const appRenderer = join(__appDir, customRenderer);
+            const appRendererData = readFileSync(appRenderer);
             await browser.webContents.executeJavaScript(appRendererData);
         }
 
         if (customStyle) {
-            const appStyle = path.join(__appDir, customRenderer);
-            const appStyleData = fs.readFileSync(appStyle, 'utf-8');
+            const appStyle = join(__appDir, customRenderer);
+            const appStyleData = readFileSync(appStyle, 'utf-8');
             await browser.webContents.insertCSS(appStyleData);
         }
 
+        if (isMessageShown) return;
         mainWindow.addBrowserView(browser);
         setBrowserBounds();
     });
@@ -204,11 +232,11 @@ function createWindow(windowOptions, browserOptions) {
 
     browser.webContents.on('did-fail-load', (_, error) => {
         if (allowedErrorRange.includes(error)) return;
-        mainWindow.webContents.send('did-fail-load');
+        mainWindow.webContents.send('wrapper_window:browser-did-fail-load');
 
         if (mainWindow.getBrowserView(browser)) {
             mainWindow.removeBrowserView(browser);
-            ipcMain.emit('reload'); // Reload once to reset DOM
+            ipcMain.emit('wrapper_main:browser-reload'); // reload to reset page
         }
         
         isLoaded = false;
@@ -220,24 +248,31 @@ function createWindow(windowOptions, browserOptions) {
         shell.openExternal(url);
         event.preventDefault();
     });
-
+    
     browser.webContents.on('new-window', (event, url) => {
-        console.log("new window")
         if (isUrlWhitelisted(url)) browser.webContents.loadURL(url);
         else shell.openExternal(url);
 
         event.preventDefault();
     });
 
+    browser.webContents.setWindowOpenHandler(({ url }) => {
+        if (isUrlWhitelisted(url)) browser.webContents.loadURL(url);
+        else shell.openExternal(url);
+
+        return { action: 'deny' }
+    })
+
     browser.webContents.on('page-title-updated', (_, title) => {
-        mainWindow.webContents.send('page-title-updated', title)
+        mainWindow.webContents.send('wrapper_window:updatePageTitle', title)
         mainWindow.title = `${title} - ${windowOptions.title}`
     });
 
-    if (windowOptions.useFavicon)
+    if (windowOptions.useFavicon) {
         browser.webContents.on('page-favicon-updated', (_, icons) => {
-            mainWindow.webContents.send('page-favicon-updated', icons)
+            mainWindow.webContents.send('wrapper_window:updatePageFavicon', icons[0])
         });
+    }
 
     browser.webContents.setUserAgent(browserOptions.userAgent || browser.webContents.session.getUserAgent().replace('Electron', 'WebAppWrapper'));
 
@@ -246,14 +281,15 @@ function createWindow(windowOptions, browserOptions) {
         return regex.test(url);
     }
 
-    ipcMain.on('removeAllListeners', () => mainWindow.removeAllListeners());
-    ipcMain.on('changeBackground', (_, color) => mainWindow.webContents.send('changeBackground', color));
-    ipcMain.on('changeForeground', (_, color) => mainWindow.webContents.send('changeForeground', color));
-    ipcMain.on('changeForegroundHover', (_, color) => mainWindow.webContents.send('changeForegroundHover', color));
-    ipcMain.on('contact', () => {
+    ipcMain.on("wrapper_main:closeMessageScreen", () => mainWindow.closeMessageScreen());
+    ipcMain.on('wrapper_main:removeAllListeners', () => mainWindow.removeAllListeners());
+    ipcMain.on('wrapper_main:changePrimaryColor', (_, color) => mainWindow.webContents.send('wrapper_window:changePrimaryColor', color));
+    ipcMain.on('wrapper_main:changePrimaryHoverColor', (_, color) => mainWindow.webContents.send('wrapper_window:changePrimaryHoverColor', color));
+    ipcMain.on('wrapper_main:changeTitleBarColor', (_, color) => mainWindow.webContents.send('wrapper_window:changeTitleBarColor', color));
+    ipcMain.on('wrapper_main:contactMaintainer', () => {
         let mail = appPackage?.bugs?.email;
         if (mail) mail = 'mailto:' + mail;
-        shell.openExternal(appPackage?.bugs?.url ?? mail)
+        shell.openExternal(appPackage?.bugs?.url || mail)
     });
 
     return {
@@ -261,30 +297,5 @@ function createWindow(windowOptions, browserOptions) {
         browser: browser
     };
 }
-
-function parseMenu() {
-    const menu = new WeakSet();
-    return (key, value) => {
-        if (key === 'commandsMap') return;
-        if (typeof value === 'object' && value !== null) {
-            if (menu.has(value)) return;
-            menu.add(value);
-        }
-        return value;
-    };
-}
-
-function getMenuItemByCommandId(commandId, menu = Menu.getApplicationMenu()) {
-    let menuItem;
-    menu.items.forEach(item => {
-        if (item.submenu) {
-            const submenuItem = getMenuItemByCommandId(commandId, item.submenu);
-            if (submenuItem) menuItem = submenuItem;
-        }
-        if (item.commandId === commandId) menuItem = item;
-    });
-
-    return menuItem;
-};
 
 module.exports = pwaWrapper;

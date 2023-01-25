@@ -7,37 +7,45 @@
 
     <title>WebAppWrapper</title>
 
-    <link rel="stylesheet" href="assets/fonts/roboto.css">
-    <link rel="stylesheet" href="assets/fonts/material-icons.css">
-    
+    <link rel="stylesheet" href="assets/fonts/NotoSans/noto-sans.css">
+    <link rel="stylesheet" href="assets/fonts/MaterialSymbols/material-symbols.css">
+
     <link rel="stylesheet" href="assets/styles/window.css" />
-    <link rel="stylesheet" href="assets/styles/splash-screen.css" />
-    <link rel="stylesheet" href="assets/styles/offline-screen.css" />
+    <link rel="stylesheet" href="assets/styles/screens/splash-screen.css" />
+    <link rel="stylesheet" href="assets/styles/screens/offline-screen.css" />
+    <link rel="stylesheet" href="assets/styles/screens/message-screen.css" />
+
+    <link rel="stylesheet" href="assets/styles/pico.min.css" />
 </head>
 
 <body>
-    <div id="splash-screen" class="center">
-        <span class="material-icons">rotate_right</span>
+    <main id="splash-screen" class="container">
+        <progress id="content-progress" indeterminate></progress>
+        <span class="material-symbols rounded">rotate_right</span>
         <h2>Loading ...</h2>
         <p>Have a little patience while we prepare everything for you!</p>
-    </div>
+    </main>
 
-    <div id="offline-screen" class="center">
-        <div id="user-offline">
-            <span class="material-icons">signal_wifi_connected_no_internet_4</span>
+    <main id="offline-screen" class="container">
+        <section id="user-offline">
+            <span class="material-symbols rounded">signal_wifi_connected_no_internet_4</span>
             <h1>Whoops!</h2>
-            <p>Looks like you don't have internet. Check your connection and everything will be awesome.</p>
-        </div>
-        <div id="page-offline">
-            <span class="material-icons">cloud_off</span>
+                <p>Looks like you don't have internet. Check your connection and everything will be awesome.</p>
+        </section>
+        <section id="page-offline">
+            <span class="material-symbols rounded">cloud_off</span>
             <h1>We lost our Server!</h2>
-            <p>We searched all of our clouds but couldn't contact the server. Let's try again later.</p>
-            <div class="controls">
-                <div id="reload" class="button">Try again</div>
-                <div id="contact" class="button">Contact us</div>
-            </div>
-        </div>
-    </div>
+                <p>We searched all of our clouds but couldn't contact the server. Let's try again later.</p>
+                <div class="controls">
+                    <button id="reload" class="outline">Try again</button>
+                    <button id="contact" class="outline">Contact us</button>
+                </div>
+        </section>
+    </main>
+
+    <main id="message-screen" class="container">
+
+    </main>
 </body>
 
 </html>

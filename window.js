@@ -1,75 +1,59 @@
-const { ipcRenderer } = require('electron');
-const customTitlebar = require("custom-electron-titlebar");
+const { contextBridge, ipcRenderer } = require('electron');
+const { Titlebar, Color } = require('custom-electron-titlebar');
 
-let titlebar;
+const updateTitleBarHight = () => ipcRenderer.send('wrapper_main:updateTitleBarHeight', parseInt(getComputedStyle(document.querySelector('.cet-titlebar')).height, 10));
 
-window.addEventListener('DOMContentLoaded', async () => {
-    titlebar = new customTitlebar.Titlebar({
-        backgroundColor: customTitlebar.Color.fromHex("#FFF"),
-        icon: 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==',
-        titleHorizontalAlignment: '',
-        onMinimize: () => ipcRenderer.send('window-minimize'),
-        onMaximize: () => ipcRenderer.send('window-maximize'),
-        onClose: () => ipcRenderer.send('window-close'),
-        isMaximized: () => ipcRenderer.sendSync('window-is-maximized'),
-        onMenuItemClick: commandId => ipcRenderer.send('menu-event', commandId)
-    });
+window.onbeforeunload = () => ipcRenderer.send('wrapper_main:removeAllListeners');
 
+window.addEventListener('DOMContentLoaded', () => {
+    const titlebar = new Titlebar({ titleHorizontalAlignment: '' });
     const root = document.documentElement;
 
-    const updateTitleBarHight = () => ipcRenderer.send('titleBarHeight', parseInt(getComputedStyle(document.querySelector('.cet-titlebar')).height, 10));
-
-    ipcRenderer.on('disableContacting', () => document.getElementById('contact').style.display = 'none');
-    ipcRenderer.on('changeBackground', (_, color) => {
-        document.body.style.backgroundColor = color;
-        titlebar.updateBackground(customTitlebar.Color.fromHex(color));
-    });
-    ipcRenderer.on('changeForeground', (_, color) => root.style.setProperty('--foreground', color));
-    ipcRenderer.on('changeForegroundHover', (_, color) => root.style.setProperty('--foreground-hover', color));
-    ipcRenderer.on('changeTitleBarAlignment', (_, position) => titlebar.updateTitleAlignment(position));
-    ipcRenderer.on('changeMenuPosition', (_, position) => {
+    ipcRenderer.on('wrapper_window:disableContacting', () => document.getElementById('contact').style.display = 'none');
+    ipcRenderer.on('wrapper_window:changePrimaryColor', (_, color) => root.style.setProperty('--primary', color));
+    ipcRenderer.on('wrapper_window:changePrimaryHoverColor', (_, color) => root.style.setProperty('--primary-hover', color));
+    ipcRenderer.on('wrapper_window:changeTitleBarColor', (_, color) => titlebar.updateBackground(Color.fromHex(color)));
+    ipcRenderer.on('wrapper_window:changeTitleBarAlignment', (_, position) => titlebar.updateTitleAlignment(position));
+    ipcRenderer.on('wrapper_window:changeMenuPosition', (_, position) => {
         titlebar.updateMenuPosition(position);
         updateTitleBarHight();
     });
-    ipcRenderer.on('page-title-updated', (_, title) => {
+    ipcRenderer.on('wrapper_window:updatePageTitle', (_, title) => {
         let trimmedTitle = title.substring(0, 70);
         titlebar.updateTitle(trimmedTitle + (title.length > 70 ? '...' : ''));
     })
-    ipcRenderer.on('page-favicon-updated', (_, data) => {
-        let icon;
-        
-        if (ArrayBuffer.isView(data)) {
-            let favicon = new Blob([data]);
-            icon = URL.createObjectURL(favicon)
-        } else if (Array.isArray(data)) {
-            icon = data[0]
-        } else {
-            icon = data;
-        }
+    ipcRenderer.on('wrapper_window:updatePageFavicon', (_, path) => {
+        if (!path) return;
 
-        titlebar.updateIcon(icon)
+        // titlebar.updateTitle() doesn't work properly
+        const windowIcon = document.querySelector('div.cet-window-icon');
+        if (windowIcon) windowIcon.firstElementChild.src = path;
     })
 
-    ipcRenderer.send('request-application-menu');
+    ipcRenderer.on('wrapper_window:openMessageScreen', (_, html) => {
+        if (document.body.classList.contains('user-offline') || document.body.classList.contains('page-offline')) return;
+        if (html) document.getElementById('message-screen').innerHTML = html;
+        document.body.classList.add('message');
+    });
+
+    ipcRenderer.on('wrapper_window:closeMessageScreen', () => {
+        document.body.classList.remove('message');
+    });
 
     updateTitleBarHight();
-    await handleFailLoad();
+    handleFailLoad();
 });
 
-ipcRenderer.on('titlebar-menu', (_, menu) => titlebar.updateMenu(menu))
-
-window.onbeforeunload = () => ipcRenderer.send('removeAllListeners');
-
-async function handleFailLoad() {
+function handleFailLoad() {
     document.getElementById('reload').addEventListener("click", () => reloadPage());
-    document.getElementById('contact').addEventListener("click", () => ipcRenderer.send('contact'));
+    document.getElementById('contact').addEventListener("click", () => ipcRenderer.send('wrapper_main:contactMaintainer'));
 
-    ipcRenderer.on('did-fail-load', async () => {
-        var isOnline = await checkInternet();
+    ipcRenderer.on('wrapper_window:browser-did-fail-load', async () => {
+        let isOnline = await checkInternet();
         if (!isOnline) {
             document.body.classList.add('user-offline');
             let interval = setInterval(async () => {
-                var isOnline = await checkInternet();
+                let isOnline = await checkInternet();
                 if (isOnline) {
                     reloadPage();
                     clearInterval(interval);
@@ -79,7 +63,7 @@ async function handleFailLoad() {
     });
 
     function reloadPage() {
-        ipcRenderer.send('reload');
+        ipcRenderer.send('wrapper_main:browser-reload');
         document.body.classList.remove('user-offline');
         document.body.classList.remove('page-offline');
     }
@@ -93,3 +77,12 @@ async function handleFailLoad() {
         }
     }
 }
+
+contextBridge.exposeInMainWorld('ipcRenderer', {
+    on: (channel, callback) => ipcRenderer.on(channel, callback),
+    send: (channel, message) => ipcRenderer.send(channel, message)
+});
+
+contextBridge.exposeInMainWorld('message', {
+    close: () => ipcRenderer.send('wrapper_main:closeMessageScreen')
+});

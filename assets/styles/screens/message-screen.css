@@ -1,0 +1,7 @@
+.message #message-screen {
+    display: block;
+}
+
+:is(.user-offline, .page-offline) #message-screen, #message-screen {
+    display: none;
+}

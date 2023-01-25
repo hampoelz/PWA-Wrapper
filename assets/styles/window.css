@@ -1,32 +1,15 @@
-*,
-*:before,
-*:after {
-  box-sizing: inherit;
-}
-
-html {
-	box-sizing: border-box;
-}
-
 body {
-	font-family: "Roboto";
-	border: 1px solid transparent;
-	color: var(--foreground);
-	overflow-y: hidden;
+	font-family: var(--font-family);
 	-ms-user-select: none;
 	-webkit-user-select: none;
 	user-select: none;
-	height: 100%;
-	margin: 0;
 }
-.center {
-	left: 50%;
-    position: absolute;
-    top: 50%;
-    transform: translate(-50%, -50%);
+
+.cet-container {
+	display: flex;
+    align-items: center;
 }
 
 :root {
-	--foreground: '#E0E0E0';
-	--foreground-hover: '#FFFFFF';
+	--font-family: 'Noto Sans';
 }
